@@ -1,0 +1,162 @@
+1.3
+>>> sig = '123'
+>>> sig in '23123561'
+True
+
+May I say
+ use deque to replace array if you want to add or remove items in any place because it's O(1).
+
+You should know
+ When to use heapq, min/max or sort.
+
+1.6
+defaultdict
+
+>>> d = {}
+>>> d['a'] = []
+>>> d['a'].append(1)
+>>> d
+{'a': [1]}
+
+vs.
+
+>>> from collections import defaultdict
+>>> d = defaultdict(list)
+>>> d['a'].append(1)
+>>> d
+defaultdict(<class 'list'>, {'a': [1]})
+
+1.7
+OrderedDict - keep order of insertion
+
+>>> from collections import OrderedDict
+>>> d = OrderedDict()
+>>> d['foo'] = 1
+
+1.8
+Use zip to sort or get max/min values of dictionary
+
+>>> a={'a':10,'b':6}
+>>> sorted(zip(a.values(),a.keys()))    # sort by value first then key
+[(6, 'b'), (10, 'a')]
+
+1.9
+Keys and items can use set operations
+
+# Find keys in common
+a.keys() & b.keys()
+# Find keys in a that are not in b
+a.keys() - b.keys()
+# Find (key,value) pairs in common
+a.items() & b.items()
+# Make a new dictionary with certain keys removed
+c = {key:a[key] for key in a.keys() - {'z', 'w'}}
+
+1.10
+set can be used to eliminate duplicates but it does not preserve orders.
+this recipe uses generator to preserve the order
+in addition, it also supports sequence of unhashable types by using a lamda function.
+
+def dedupe(items, key=None):
+    seen = set()
+    for item in items:
+        val = item if key is None else key(item)
+        if val not in seen:
+            yield item
+            seen.add(val)
+
+a = [ {'x':1, 'y':2}, {'x':1, 'y':3}, {'x':1, 'y':2}, {'x':2, 'y':4}]
+print(list(dedupe(a, key=lambda d: (d['x'],d['y']))))
+# [{'x': 1, 'y': 2}, {'x': 1, 'y': 3}, {'x': 2, 'y': 4}]
+print(list(dedupe(a, key=lambda d: d['x'])))
+# [{'x': 1, 'y': 2}, {'x': 2, 'y': 4}]
+
+1.11
+Naming a slice for readability
+record[20:32] is equivalent to
+SHARES = slice(20,32); record[SHARES]
+
+Question: slice.indices? The result is wrong.
+>>> a.indices(len(s))
+(5, 10, 2) -> it should be (10,10,2)
+
+1.12
+collections.Counter can be used with mathematical operations (+/-)
+Consider when to use Counter and when dictionary.
+Use case:
+I often store expected values in a dictionary. With Counter, I can use two Counter objects,
+ one for expected result and the other actual result and do the subtraction to check if they
+ are the same.
+ There's a problem in this usage. You can only detect extra values but not missing ones unless you
+ do the subtraction twice. 
+ >>> words1 = ['look', 'into', 'my', 'eyes', 'look']
+ >>> words2 = ['look', 'into', 'his', 'eyes', 'look']
+ >>> words1_count = Counter(words1)
+ >>> words2_count = Counter(words2)
+ >>> words1_count-words2_count
+ Counter({'my': 1})
+ >>> words2_count-words1_count
+ Counter({'his': 1})
+
+1.13
+sorted(rows, key=lambda r: r['fname'])
+vs.
+from operator import itemgetter
+sorted(rows, key=itemgetter('lname','fname')) 
+
+they are the same but latter is faster.
+min()/max() can use itemgetter too.
+
+1.14
+operator.attrgetter is similar to 1.13 but it applies to class.
+e.g., sorted(users, key=attrgetter('last_name', 'first_name'))
+
+1.15
+itertools.groupby()
+need to sort before groupby
+alternative method is defaultdict which does not require sorting but uses more memory
+
+1.16
+know when to use list comprehension, generator, filter and itertools.compress
+>>> pos = (n for n in mylist if n > 0) # generator
+>>> [n for n in mylist if n > 0]       # list comprehension
+>>> filter(fn,values)                  # iterator
+>>> A=[1,2,3,4,5]
+>>> B=[1,0,0,1,1]
+>>> list(compress(A, B))               # use B as filtering criteria
+[1, 4, 5]
+
+1.17
+dictionary comprehension
+>>> { key:value for key, value in prices.items() if value > 200 }
+
+1.18
+collections.namedtuple
+use name instead of index to access an array element
+>>> case = ['abc.com',http://abc.com/',1]
+>>> rc == case[2]
+vs.
+>>> Case = namedtuple('Case',['rule','url','result'])
+>>> case = Case('abc.com',http://abc.com/',1)
+>>> rc == case.result
+more efficient than dictionary but it is immutable. use _replace to generate a new one.
+refer to 8.4 for more efficient alternative if there's need to modify many attributes.
+
+1.19
+it's more efficient to use generator than list
+>>> sum([x for x in values])
+>>> sum(x for x in values)
+
+1.20
+collections.ChainMap
+not yet know any use case
+
+others
+unpack array as parameters to a function
+>>> p = [1,2,3,4]
+>>> f(*p) # equivalent to f(1,2,3,4)
+---
+if any([]) vs. if len([]) -> which is better?
+
+summary of chapter 1
+* collections and itertools are useful
