@@ -1,0 +1,43 @@
+2.4
+ re.findall  return a list
+ re.finditer return an iterator
+
+2.5
+ re.sub(cbfn,text) # the 1st parameter can be a function
+ >>> re.subn(r'\d',r'#',"1a2b")
+ ('#a#b', 2)
+
+2.8
+ re.DOALL lets . matches newline
+
+2.9
+ unicodedata.normalize('NFC',s)
+ 1st parameter: NFC,NFD,NFKC,NFKD
+
+2.11
+ str.strip() does not deal with characters in the middle of a string. Use str.replace() instead.
+
+2.12
+ watch for the performance of the method you choose. For example, multiple replace() may be faster than
+ translate() or regular expression.
+
+2.14
+ + is slower than join
+
+2.15
+ The problem is Python has no way to embed variables in a string but I don't know if this recipe really is useful.
+ str.format() has done a good job for me.
+
+2.16 & 2.17
+ No need for now.
+
+2.18
+ You can name a regular expression. (?P<DIGIT>\d+)
+ use lastgroup attribute of match object to get name and group() to get value. (m.lastgroup,m.group())
+ ??? If any nonmatching text is found, scanning simply stops.
+
+2.19
+ I'd rather using ply (see plyexample.py) directly.
+
+2.20
+ Why would anyone use expression like this: os.listdir(b'.')?
