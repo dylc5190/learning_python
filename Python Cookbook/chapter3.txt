@@ -1,0 +1,74 @@
+3.2
+ To deal with cases like
+  4.2+2.1=6.300000000000001
+ use decimal module. However sometimes you can simply
+ ignore the error depending on your application.
+ So how to make a decision?
+
+3.3
+ '[<>^]?width[,]?(.digits)?' 
+ e.g.,
+ >>> format(123456.789,'>10,.2')
+ '   1.2e+05'
+
+3.4
+ # integer to bin, oct and hex 
+ >>> '{:b}, {:o}, {:x}'.format(100,100,100)
+ '1100100, 144, 64'
+ # string to integer 
+ >>> int('64',16)
+ 100
+ unlike C, octal value is prefixed with 0o.
+
+3.5
+ >>> int.from_bytes(b"\xff\x00",'big')
+ 65280
+ >>> int.from_bytes(b"\xff\x00",'little')
+ 255
+ >>> x=65280
+ >>> x.to_bytes(16,'big')
+ b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\x00'
+ >>> x.to_bytes(4,'big')
+ b'\x00\x00\xff\x00'
+ >>> x.to_bytes(4,'little')
+ b'\x00\xff\x00\x00'
+
+3.6
+3.7
+3.8
+ complex value, inf, nan, fraction
+
+3.9
+3.10
+ Use numpy for
+  Large array
+  Linear algebra
+
+3.11
+  random.choice(values)
+  random.sample(values, 2)
+  random.shuffle(values)    # this is an in-place operation
+  random.randint(0,10)
+  random.random()           # floating-point value between 0 and 1
+  support probabality distributions like uniform, Gaussian, and etc.
+  don't use random in programs related to cryptography. it's not secure.
+
+3.12
+ >>> from datetime import timedelta
+ >>> from datetime import datetime
+ use timedelta for datetime mathematical operation
+ e.g., datetime(2012, 9, 23) + timedelta(days=10)
+ For more advanced usage, use dateutil (especially dateutil.relativedelta). For example, timedelta(months=1) is not supported.
+
+3.14
+ calendar module
+
+3.15
+ string to datetime
+ e.g., datetime.strptime('2019-08-01', '%Y-%m-%d') # caution: strptime is slow. sometimes it's faster to parse the string by yourself. 
+ datetime to string
+ e.g., datetime.strftime(datetime(2019,8,7,12,23,1), '%A %B %d, %Y')
+
+3.16
+ use pytz module to deal with time zones, daylight saving time and etc.
+ PEP 431 is withdrawn so pytz is still in use.
