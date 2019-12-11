@@ -1,0 +1,105 @@
+4.1
+ Manually get a value from iterator
+ next(it)      - when stopped, raise exception
+ next(it,None) - when stopped, return None
+
+4.2
+ Implementing the __iter__ method makes a class iterable
+ def __iter__(self):
+     return iter(self._children)
+
+4.3
+ Use yield to make a generator
+
+4.4
+ Understand when to use __iter__ and __next__ and when generator. Both can generate an iterator.
+ generator.py shows calling sequence.
+ additional challenge
+  what is the difference among the following (https://stackoverflow.com/questions/43536917/what-does-the-expression-a-yield-from-f-mean)
+   yield x
+   y = yield
+   y = yield x
+   yield from f()
+   a = yield from f()
+
+4.5
+ to iterate in reverse the object must have a size or implement __reversed__ method.
+  you can use list() to make an iterator reversible but you are using memory in exchange.
+
+4.6
+ I think this recipe just wants to say you can create a class that is a generator.
+ why next() failed in the example? because it does not implement __next__.
+  iterator.py shows the difference of next and for.
+  but implementing __next__ is not the right way for this case. the recipe has provided the right solution: using iter().
+
+4.7
+ slicing an iterator
+ >>> import itertools
+ >>> for x in itertools.islice(c, 10, 20):
+ ... print(x)
+ islice(c, 10, None) means c[10:]
+
+4.8
+ >>> from itertools import dropwhile
+ >>> [n for n in dropwhile(lambda x: x > 10, [11,13,2,4,18,30])]
+ [2, 4, 18, 30]
+ Note dropwhile only drops items before lambda returns false
+
+4.9
+ itertools.permutations(items)           P(N,N)
+ itertools.permutations(items,2)         P(N,2)
+ combinations(items, 3)                  C(N,3)
+ combinations_with_replacement(items, 3) 
+ useful to generator test cases
+
+4.10
+ >>> [(i,v) for i, v in enumerate(['a','b','c'])]
+ [(0, 'a'), (1, 'b'), (2, 'c')]
+ >>> [(i,v) for i, v in enumerate(['a','b','c'],1)] # useful if used with file handle, i is line number.
+ [(1, 'a'), (2, 'b'), (3, 'c')]
+
+4.11
+ zip - use the shortest length
+ zip_longest(a,b) - fillvalue is None
+ zip_longest(a, b, fillvalue=0) - specify fillvalue
+
+4.12
+ for x in chain(array1,array2)
+
+4.13
+ chaining generators as a pipeline
+ the most confusing part for me is gen_concatenate which uses "yield from"
+
+  lines = gen_concatenate(files)
+  pylines = gen_grep('(?i)docker', lines)
+  [line for line in pylines]
+
+ The above snippet is an elegant version of  
+
+  for f in files:
+    pylines = gen_grep('(?i)docker', f)
+    [line for line in pylines]
+
+ This is definitely not straightforward to me but it's indeed cleaner.
+
+4.14
+ use generator to flatten a nested sequence
+ yield from
+ isinstance(x, Iterable)
+ str and bytes are iterable
+
+4.15
+ heapq.merge sorts all input sequences which must be sorted
+
+4.16
+ iter(callable, sentinel) is indeed prettier than a while loop IMO.
+ Note the callable cannot take any argument
+ >>> f = open('/etc/passwd')
+ >>> for chunk in iter(lambda: f.read(10), ''): sys.stdout.write(chunk)
+
+
+
+Cheat sheet
+for i,v in enumerate(array)
+for x,y in zip(array1,array2)
+for x in chain(array1,array2)
