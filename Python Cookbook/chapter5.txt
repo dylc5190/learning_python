@@ -1,0 +1,107 @@
+5.1
+open('somefile.txt', 'rt', encoding='latin-1')
+encoding is optional. usually it's utf-8. use sys.getdefaultencoding() to see its value.
+use errors='replace' or 'ignore' for decoding error.
+
+5.2
+with open('somefile.txt', 'rt') as f:
+ print('Hello World!', file=f)
+print can only work with file opened in text mode.
+
+5.3
+print('ACME', 50, 91.5, sep=',', end='!!\n')
+change separator and line ending
+
+5.4
+b[0] of b='Hello' and b=b'Hello' is different. One is 'H' and the other is 72.
+
+5.5
+open('somefile', 'xt') will fail if 'somefile' exists.
+
+5.6
+use io.StringIO() and io.BytesIO() to create file-like objects from string or byte array.
+
+5.7
+import gzip
+gzip.open('somefile.gz', 'rt')
+gzip also supports gzip.open(f,'rt') where f can be opend file handle, sockets, pipes and other file-like objects.
+
+5.8
+Iterate a binary file with fixed size
+records = iter(partial(f.read, RECORD_SIZE), b'') # partial is from functools. b'' means EOF.
+ for r in records:
+  ... 
+
+5.9
+use readinto or memoryview to avoid memory allocation when reading files. use bytearray to receive the data.
+
+5.10
+nmap.nmap
+ can be used as IPC.
+ it won't copy all file contents to the memory.
+memoryview
+
+5.11
+use os.path to handle directory/file name. this makes your program portable.
+
+5.12
+os.path provides lots of file info, isfile, isdir, getsize, getmtime and etc.
+
+5.13
+list directory
+ os.listdir()
+ glob.glob()
+
+5.14
+When will I open a file with byte strings as filename.
+
+5.15
+trick for UnicodeEncodeError string
+ repr(filename)[1:-1]
+ I cannot reproduce the exception. Just non-printable character is shown. [1:-1] seems to just remove the double quote.
+ >>> print('b\udce4d.txt')
+ b�d.txt
+ >>> repr('b\udce4d.txt')
+ "'b\\udce4d.txt'"
+ >>> repr('b\udce4d.txt')[1:-1]
+ 'b\\udce4d.txt'
+ I don't know where the conversion from \xe4 to \udce4 is?
+
+5.16
+Change encoding by io.TextIOWrapper and detach() of file handle.
+I may never have a chance to use it.
+
+5.17
+Need to use buffer attribute to write bytes
+ sys.stdout.buffer.write(b'Hello\n')
+Encoding layer is on top of binary buffer layer.
+
+5.18
+file descriptor is different from file handle
+ fd = os.open('somefile.txt', os.O_WRONLY | os.O_CREAT)
+ f = open('somefile.txt','r')
+fd can be converted to file handle
+ f = open(fd,'r')
+fd can be file, pipe, socket, etc.
+
+5.19
+from tempfile import TemporaryFile
+from tempfile import NamedTemporaryFile
+from tempfile import TemporaryDirectory
+with TemporaryFile('w+t') as f:               # temp file without name
+with NamedTemporaryFile('w+t') as f: f.name   # with name
+with TemporaryDirectory() as dirname:         # temp directory
+
+5.20
+Serial port
+
+5.21
+pickle
+
+
+
+
+
+
+
+
