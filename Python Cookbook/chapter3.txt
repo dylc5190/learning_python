@@ -6,7 +6,7 @@
  So how to make a decision?
 
 3.3
- '[<>^]?width[,]?(.digits)?' 
+ '[<>^]?width[,]?(.digits)?' <-- general form of the width and precision
  e.g.,
  >>> format(123456.789,'>10,.2')
  '   1.2e+05'
