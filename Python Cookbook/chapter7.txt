@@ -1,0 +1,84 @@
+7.1
+def vars_list(a,*b)
+def vars_dict(a,**b)
+
+7.2
+Keyword-only document
+ def vars_list(a,*b,c) <-- must be called with vars_list(...,c=xxx)
+ def vars_list(a,*,c)  <-- same but if you don't need *b
+
+7.3
+Annotated function
+ def xyz(x:int,y:int) -> int:
+
+7.4
+return 1,2,3 -> it returns a tuple just same as (1,2,3)
+
+7.5
+Function with default value
+ def xyz(a,b=42)
+Distinguish passing None from not passing any argument
+ _noval = object()  # object is a perfect choice as a special value that a user never supply
+ def xyz(a,b=_noval): if b is _noval ...
+
+7.6
+lambda: anonymous or inline function
+ allow only a single expression
+
+7.7
+Do you know the difference between these two functions
+ lambda y: x+y       # x is bound at runtime so it may be changed when lambda is called
+ lambda y,x=x: x+y   # x in the argument is bound at definition so it's fixed.
+
+7.8
+ from functools import partial
+ def spam(a, b, c, d): pass
+ # make spam a function with just 2 arguments by fixing a=1,c=3
+ # this sample is a little strange. it makes the new function need to supply keyword argument for d.
+ spam_reduced = partial(spam, 1, c=3)
+ spam_reduced(2,d=4) # supply b and d
+ # This looks more reasonable
+ spam_reduced = partial(spam, 1, d=4)
+ spam_reduced(2,3) # supply b and c
+This can be used in situations that the supplied callback requires specific number of arguments,
+ for example, sort, multiprocessing.Pool or socketserver.TCPServer.
+ in the above examples, partial and lambda are interchangable but the readibility is different.
+when partial applys to a class, it reduces the arguments of __init__.
+
+7.9
+single-method classes can be turned into functions using closures.
+the method of binding data to a function without actually passing them as parameters is called closure.
+I just saw examples as nested function. Not sure if it must be used this way.
+def outer
+ msg = 'hello'
+ def inner()
+  print(msg)       # msg is declared outside inner and is not received as parameters. inner is a closure.
+ return inner
+search python closure for more details.
+
+7.10
+bound-method - a function that is an attribute of a class and you access it via an instance of that class.
+closure - mentioned in 7.9
+ nonlocal - indicate the variable is declared outside this 
+coroutine - a function that uses yield to get value from its send method. (It's different from generator. Search python coroutine for details.)
+partial - explained in 7.8
+lambda
+Combine techniques above, we can implement a callback with extra information without using global variables.
+
+7.11
+functools.wraps is used to show correct __name__ and __doc__ of wrapped function. (http://www.blog.pythonlibrary.org/2016/02/17/python-functools-wraps/)
+ It seems not important in this example.
+ More explanation in 9.2.
+I don't understand the benefit here. It just hide the callback parameter of apply_async in a decorator and you cannot change it.
+ Maybe I should study contextlib to get the author's point.
+TODO: add more details in inline_async.py
+
+7.12
+function can have attributes and the attribute can be a function too.
+ def func1(): pass
+ def func2(): pass
+ func1.xyz=func2
+How to modify the variable in closure?
+ define another function and attach it to the closure by function attribute.
+Would anyeone use closure to replace class just because it's faster?
+

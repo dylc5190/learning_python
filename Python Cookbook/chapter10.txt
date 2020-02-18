@@ -1,0 +1,124 @@
+10.1
+import a.b.c
+ you are importing a/b/c.py
+ put __init__.py in a/ and a/b/
+ __init__.py can be empty
+ if your a/b/__init__.py contains
+   from . import c
+ then you can just import a.b and c is imported automatically.
+
+10.2
+from xyz import *
+ will import everything not starts with an underscore.
+ you can control what to export in xyz by declare the __all__ variable.
+  __all__ = ['method1','var1']
+
+10.3
+from ..B import bar means import ../B/bar.py
+relative import only works with the from form import.
+
+10.4
+separate class A and B in two files
+mymodule/
+  __init__.py
+    from .a import A
+    from .b import B
+  a.py
+    class A
+  b.py
+    class B
+test.py
+  import mymodule
+  a = mymodule.A()
+
+10.5
+namespace package
+dir1/
+  xyz/
+    file1.py
+dir2/
+  xyz/
+    file2.py
+1. dir1,dir2 cannot have __init__.py
+   otherwise only 1 folder is imported
+2. dir1 and dir2 must be in sys.path
+>>> import sys
+>>> sys.path.extend(['dir1','dir2'])
+>>> import xyz
+>>> xyz.__path__
+>>> import xyz.file1
+>>> xyz.file1.method1()
+
+use case: write a plug-in
+
+10.6
+python3 uses importlib to replace imp
+if you uses from form of import, you need to execute it again.
+ import foo
+ from foo import bar
+ importlib.reload(foo)
+ from foo import bar
+
+10.7
+myapp
+ foo.py
+ bar.py
+ __main__.py
+you can run python myapp or python myapp.zip if myapp is zipped.
+
+10.8
+Similar to 10.7 but you have an additional data files, say foo.txt, how do you access it?
+>>> import pkgutil
+>>> data = pkgutil.get_data(__package__,'foo.txt')
+Question: what if the file size is big and I want to read it by chunks?
+
+10.9
+adding directories to sys.path
+ 1. env PYTHONPATH=/a/b:/c/d python3
+ 2. add them to yourapp.pth
+    this file needs to be placed in site-packages directory. for local use you can put it in ~/.local/lib/python/site-packages
+not encourage to hardcode them by sys.path.append(). however if you have to, try to get current directory at runtime.
+
+10.10
+If you need to import a module by string
+ math = importlib.import_module('math')  # equivalent to import math
+For package
+ b = importlib.import_module('.b',__package__) # equivalent to from . import b
+
+10.11
+Sort of a import internal but I'll skip it for now.
+
+10.12
+Later
+
+10.13
+module installation for personal use
+ python setup.py install --user
+ pip install --user package
+
+10.14
+pyenv - let you install multiple versions of Python in the same system
+virtualenv - let you create isolated environment using a specific version of Python
+What's the difference?
+ * You instal Python with pyenv.
+ * You create a virtual environment with specified version of Python with virtualenv.
+ * Multiple virtualenv environments may have the same version of Python.
+pyenv-virtualenv - using virtualenv in pyenv
+
+10.15
+How to write a package for distribution?
+Prepare two files
+# setup.py
+from distutils.core import setup
+setup(name='projectname',
+ version='1.0',
+ author='Your Name',
+ author_email='you@youraddress.com',
+ url='http://www.you.com/projectname',
+ packages=['projectname', 'projectname.utils'],
+)
+# MANIFEST.in
+ include *.txt
+ recursive-include examples *
+ recursive-include Doc *
+Run python setup.py sdist

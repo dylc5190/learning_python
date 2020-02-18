@@ -1,0 +1,164 @@
+9.1
+decorator
+
+9.2
+Using functools.wraps or not does not affect the execution of wrapped function but it helps show the metadata of the wrapped function.
+Calling signature is mentioned here. More on 9.16.
+
+9.3
+__wrapped__ attribute is the original function being wrapped, e.g., add.__attribute__, if
+ @wraps is used.
+ only one decorator is used.
+  if multiple decorators are used, the behavior varies on different versions of Python.
+
+9.4
+Let decorator have arguments by adding an extra function in the middle
+ def deco(param):
+  def extra(func):
+   args = param         <-- make param availalbe to wrapper 
+   def wrapper(func):
+    args ...
+Note the calling sequence
+ @deco:       deco(func)
+ @deco(x,y):  deco(x,y)(func) <-- deco(x,y) must return a callable
+
+9.5
+Change internal variables in a wrapper
+ Use @attach_wrapper to attach accessor function to a wrapper and nonlocal
+    def decorate(func):
+        level = ...
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            ...
+        # Attach setter functions
+        @attach_wrapper(wrapper)
+        def set_level(newlevel):
+            nonlocal level
+            level = newlevel
+
+9.6
+Trick to let a decorator can have optional arguments. Recall the calling sequence in 9.4.
+ def logged(func=None, *, level=logging.DEBUG, name=None, message=None):
+    if func is None: <-- for @logged(x,y,z)
+        return partial(logged, level=level, name=name, message=message)
+In fact, you don't have to use this trick as long as you use @logged() to replace @logged though it's not that intuitive.
+
+9.7
+Use decorator to enforce type checking on a function.
+TODO: need to understand what inspect.signature does.
+
+9.8
+Decorator can be a method of a class.
+When to use this kind of decorator?
+ If the decorator needs to maintain some internal states.
+ In fact, property is a class decorator.
+These decorators can be applied as either a class or instance method.
+
+9.9
+Decorator as class
+ note the role __get__ plays
+
+9.10
+When applying decorators to class and static method, make sure decorator is applied before @classmetod and @staticmethod, i.e.,
+ class ABC:
+  @classmetod
+  @wrapfunc
+  def a_class_method():
+
+9.11
+Add arguments to wrapped function
+def optional_debug(func):
+ @wraps(func)
+ def wrapper(*args, debug=False, **kwargs):   <-- debug is not defined in wrapped function
+  if debug:
+   print('Calling', func.__name__)
+  return func(*args, **kwargs)
+ return wrapper
+
+9.12
+Decorate a class.
+ You can patch the class method.
+  def patch_class(cls):
+    def new_method(self):
+      pass
+    cls.a_method = new_method
+    return cls
+Compare this with mixins, metaclasses and inheritance.
+
+9.13
+Metaclass can be used to control how an instance is created, like singletons, caching and etc.
+Creating a instance is calling __call__ method of a class.
+Check metaclass.py for calling sequence.
+
+9.14
+__prepare__
+
+9.15
+Metaclass can take arguments (must be keyword-only)
+ e.g., class Xyz(metaclass=MyMeta, debug=True):
+Optional arguments need to be defined on __prepare__, __new__ and __init__ methods of metaclass.
+
+9.16
+Use inspect.Signature.bind to check the calling signature
+You can use inspect.Parameter to define the parameters of a function
+If __signature__ is defined, inspect will use it as the calling convention.
+I think this is used on high level classes that can dynamically check the calling signatures based on subclass' definition.
+ In the last example, you can just define the attributes of a class in a very simple way.
+
+9.17
+You can use metaclass to check the coding convention, for example, prohibid of method name in mixed case.
+
+9.18
+You can dynamically define a class. A practical example is collections.namedtuple
+ collections.namedtuple uses exec to achieve
+ this recipe shows an alternative with types.new_class method
+
+9.19
+Check init_cls_members_at_clsdef.py. Note the __init__ method of StructTupleMeta is invoked 3 times in each class definition.
+
+9.20
+Multiple dispatch (method overloading)
+Function annotations
+Function annotations does not enforce the type checking. This recipe shows a possible solution. However the author
+ admits this is error prone and not the best practice. Therefore I skip it.
+
+9.21
+Reduce the repetitive type checking property methods to a single function. This looks practical.
+ the function is a closure 
+
+9.22
+A quick way to write a context manager
+ from contextlib import contextmanager
+ @contextmanager
+ def xyz():
+   # code before yield plays the role of __enter__
+   yield
+   # code after yield plays the role of __exit__
+ with xyz():
+   ...
+
+This method is for function. You still need to use the traditional way for objects.
+
+9.23
+Many problems where you might consider the use of exec() can be replaced by closures, decorators,
+ metaclasses, or other metaprogramming features.
+exec can create a new variable but it may be invisible in a function.
+ To fix that, you need to manipulate the local variable through locals().
+You can pass your own global and local variables to exec.
+ exec(expression,glb,loc) where glb and loc are dictionaries.
+
+9.24
+use ast module to parse python source code
+the example uses ast to rewrite a function by lowering global variables to local and the new code runs 20% faster.
+
+9.25
+dis module can output disassembly of a Python function.
+ def xyz():
+   pass
+ dis.dis(xyz)
+ You can use byte code to analyze performance. You can also modify the byte code.
+ 
+
+* What's the difference between static and class method?
+* What is metaclass? What does 'class A(metaclass=B)' mean?
+

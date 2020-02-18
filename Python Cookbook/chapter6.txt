@@ -1,0 +1,113 @@
+6.1
+import csv
+from collections import namedtuple
+with open('stocks.csv') as f:
+ f_csv = csv.reader(f)
+ headers = next(f_csv)
+ Row = namedtuple('Row', headers)  <-- be careful about nonvalid identifier characters
+ for r in f_csv:
+  row = Row(*r)
+  # you can use header name instead of index to access field values now
+  # e.g., row.Symbol
+  # if using csv.DictReader(f), value is row['Symbol']
+
+For write, use
+f_csv = csv.writer(f)
+f_csv.writerow(headers)
+f_csv.writerows(rows) 
+or
+f_csv = csv.DictWriter(f, headers)
+f_csv.writeheader()
+f_csv.writerows(rows)
+
+You may need to convert the field value to specific type.
+
+Questions?
+How to skip comment lines?
+ https://stackoverflow.com/questions/14158868/python-skip-comment-lines-marked-with-in-csv-dictreader
+
+
+6.2
+import json
+json_str = json.dumps(data)
+data = json.loads(json_str)
+# with file handle
+json.dump(data, f)
+data = json.load(f)
+
+Use pprint (from pprint import pprint) to print JSON.
+You can manipulate JSON data with
+ * object_pairs_hook
+ * object_hook
+ Check json_object_hook.py which helps to undertsand the processing flow. 
+ Basically it invokes your callback (function or __init__ method) from the inner most {...} up to the outer most.
+Some options of json.dumps()
+ indent: print pretty format of JSON
+ sort_keys
+ default: supply a function to serialize special type of instances (serialize_instance in textbook)
+
+Questions
+How to handle utf8-encoded json with json.load?
+ with open('twitter.json', encoding='utf-8') as f:
+    data = json.load(f)
+json or jq? 
+
+6.3
+from xml.etree.ElementTree import parse
+from lxml.etree import parse
+
+6.4
+For large XML file, use 
+ from xml.etree.ElementTree import iterparse
+
+Why is iterparse slower than parse?
+Why the saved memory is controlled by caller instead of iterparse itself?
+
+6.5
+Create element
+ from xml.etree.ElementTree import Element, tostring
+
+6.6
+Use remove, insert, write and etc. to modify XML document.
+
+6.7
+Dealing with XML namesapce with ElementTree is messy (even the provided recipe looks messy too).
+lxml supports more advanced features
+
+6.8
+DB operations vary depending on the database you use.
+
+6.9
+hex <-> ascii
+ binascii
+ base64: b16encode, b16decode
+ * be careful about how each module handles case folding
+   for example,
+   base64.b16decode('4a') -> ERROR
+   base64.b16decode('4A') -> OK
+   binascii.a2b_hex('4a') -> OK
+
+6.10
+base64 encode/decode
+
+6.11
+Using Struct is more elegant than calling struct.pack directly
+>>> from struct import Struct
+>>> record_struct=Struct('<idd')
+>>> record_struct.pack(18,20.1,16.55)
+b'\x12\x00\x00\x00\x9a\x99\x99\x99\x99\x194@\xcd\xcc\xcc\xcc\xcc\x8c0@'
+>>> record_struct.unpack(_)
+(18, 20.1, 16.55)
+
+unpack_from(data,offset)
+ unpack a large byte array by giving offset of interested part.
+ you don't have to make lots of small data slices
+unpack can be used with namedtuple for clear naming of each fields
+numpy also supports unpack-like expression , e.g., np.fromfile(f, dtype='<i,<d,<d')
+
+6.12
+memoryview
+metaclass
+
+6.13
+Use Pandas for data analysis involving statistics, time series, and etc.

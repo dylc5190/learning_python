@@ -22,6 +22,8 @@
    yield from f()
    a = yield from f()
 
+   I felt next(gen) behaves like gen.send(None)
+
 4.5
  to iterate in reverse the object must have a size or implement __reversed__ method.
   you can use list() to make an iterator reversible but you are using memory in exchange.
@@ -36,7 +38,7 @@
  slicing an iterator
  >>> import itertools
  >>> for x in itertools.islice(c, 10, 20):
- ... print(x)
+ ...  print(x)
  islice(c, 10, None) means c[10:]
 
 4.8
@@ -50,7 +52,7 @@
  itertools.permutations(items,2)         P(N,2)
  combinations(items, 3)                  C(N,3)
  combinations_with_replacement(items, 3) 
- useful to generator test cases
+ useful to generate test cases
 
 4.10
  >>> [(i,v) for i, v in enumerate(['a','b','c'])]
@@ -81,6 +83,11 @@
     [line for line in pylines]
 
  This is definitely not straightforward to me but it's indeed cleaner.
+ My explanation of 'yield from' is as follows
+  for i in items:
+    yield i
+  can be substituted by
+  yield from items
 
 4.14
  use generator to flatten a nested sequence

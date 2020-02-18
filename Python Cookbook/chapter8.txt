@@ -1,0 +1,172 @@
+8.1
+__repr__ is for repr() and interactive shell
+__str__ is for print and str()
+ print("{0!r}",p) will change the output from __str__ to __repr__
+
+8.2
+define __format__ method to control the output of format()
+
+8.3
+use __enter__ and __exit__ to support with statement
+__exit__
+ has 3 parameters, exception type,value and traceback.
+ if retuning None, exception is left to the original flow.
+ if return True, the exception is cleared as if nothing happened.
+ref. 9.22 & 12.6
+
+8.4
+use __slots__ attribute to save memory if you need to create say millions of instances of this class.
+side effect is you cannot add attribute to this class at runtime.
+
+8.5
+variables and methods with leading underscore is private (though not restrict access)
+double leading underscores is related to name-mangling in class inheritance (cannot be overridden).
+ this can be used to hide private attributes from subclass.
+use trailing underscore to resolve the conflict with reserved words, e.g., lambda_ = 2.0.
+
+8.6
+use @property, @XXX.setter and @XXX.deleter to customize the attribute of a class, for example,
+ dynamically generate the value for an attribute
+ type checking
+property() is another method to create attributes
+ class Foo():
+    def method1():
+    def method2():
+    attr1 = property(method1,...)
+ref. 8.9 and 9.21 for repetitive property definitions.
+
+8.7
+use super to call methods of parent class
+be careful about calling an unexpected method in inheritence though you may never meet it.
+
+8.8
+define the property of subclass as usual or extend just specific method from parent's as the following example
+ class SubPerson(Person)
+  @Person.name.getter
+  def name(self):
+   ...
+Note the usage of supper(SubPerson,SubPerson) in the example of page 262.
+the concept here applies to descriptor too. (what is Python descriptor?)
+Check for latest update of how subclassing of setter and deleter work.
+
+8.9
+Descriptor
+ A class that implements __get__(), __set__() and __delete__().
+ It must be defined as the class variable.
+  When I instantiated a descriptor, say x = Integer('x'), I found all the methods were not invoked.
+When will the instance in __get__ be None?
+ If it is accessed as a class variable, for example Point.x where x is the descriptor Integer.
+
+8.10
+Lazily computed properties
+ Use descriptor as decorator of class methods.
+  When accessed for the first time, the method is executed but then a attribute of the same name as the method is added.
+  Later access of the method became access to the attribute and the method is never invoked unless the attribute is deleted.
+ The recipe also shows another method, thought not as efficient, to make the newly added attribute immutable.
+
+8.11
+Use a base class to reduce the implementation of __init__ for many classes.
+ You can use this when __init__ of all these classes only defines variables and set initial values
+ The downside is you cannot see what the arguments are with help(cls) which can be addressed by 9.16.
+
+8.12
+Define an interface or abstract base class
+
+ from abc import ABCMeta, abstractmethod
+
+ class IStream(metaclass=ABCMeta):
+    @abstractmethod
+    def read(self, maxbytes=-1):
+        pass
+    @abstractmethod
+    def write(self, data):
+        pass
+
+@abstractmethod needs to be followed immediately by function definition when combined with other mechanism, e.g., @property.
+
+8.13
+To enforce type or value checking, let the class variables be descriptors and enforce the checking in the descriptor class.
+Other alternatives (still leverage descriptor but apply checking in a different way)
+ use decorator (there are two examples in the book that apply decorators in different targets)
+ use metaclass
+
+8.14
+Define your own container by inherit Python's abstract base classes.
+ e.g., class A(collections.Iterable)
+       class A(collections.Sequence)
+
+8.15
+__getattr__ is invoked when the attribute is not defined. you can use it for delegation.
+However if the invoked methods starts with double underscores, __getattr__ won't be called. see ListLike example in the book.
+
+8.16
+Use class method as an alternative constructor
+class Date:
+    # Primary constructor
+    def __init__(self, year, month, day):
+        self.year = year
+        self.month = month
+        self.day = day
+ 
+    # Alternate constructor
+    @classmethod
+    def today(cls):
+        t = time.localtime()
+        return cls(t.tm_year, t.tm_mon, t.tm_mday)
+
+a = Date(2012, 12, 21) # Primary
+b = Date.today()
+
+8.17
+o = MyClass.__new__(MyClass) can create an instance of MyClass without calling __init__.
+When will I not want to call __init__?
+
+8.18
+Mixins
+ When you want to extend a class but don't want to use inheritance.
+ They don't have __init__ method and instance variables.
+  If you insist to implement it, there are strict rules to follow. See textbook for details.
+ Not used alone
+ Usually combined with another class,which it intends to extend the functionality, and inheritted by one another class 
+  e.g. class LoggedDict(LoggedMappingMixin, dict) in textbook
+       LoggedMappingMixin implements the necessary methods of dict with added logging functionality
+       and then calls the original methods by supper().original_method_name()
+  note the order of the multiple inheritance, it has to be that order so that super() of LoggedMappingMixin will be dict.
+  check method resolution order (MRO) for more about this concept.
+
+You can also use class decorator to achieve the same goal of mixin.
+
+8.19
+Make each state a class and implements the allowed methods only. Then you don't have to write lots of if-else condition for state transition.
+
+8.20
+operator.methodcaller()
+I still don't understand when to use this?
+
+8.21
+Targets of visitor pattern
+ complicated data structure consisting of many different kinds of objects, each of which needs to be handled in a different way.
+ many if-else or switch/case
+Watch for the recursion depth - use 8.22 if having this problem
+
+8.22
+Visitor pattern without recursion - using generator.
+Skip for now.
+
+8.23
+Cyclic data structure
+ Having problem for garbage collection
+ Use weakref to solve the problem
+Skip for now.
+
+8.24
+Comparing instances of a class
+ define methods __ge__, __lt__ and etc.
+ use functools.total_ordering decorator
+  you only need to implement __eq__ and __lt__
+
+8.25
+Create single instance of a class that having the same parameters.
+Using normal factory implementation is OK but here the author just wants to demonstrate the benefit of using weakref.WeakValueDictionary()
+Skip for now.
+

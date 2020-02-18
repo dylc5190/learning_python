@@ -53,7 +53,7 @@ list directory
  glob.glob()
 
 5.14
-When will I open a file with byte strings as filename.
+When will I open a file with byte strings as filename?
 
 5.15
 trick for UnicodeEncodeError string
