@@ -2,6 +2,7 @@
 
 import sys
 import time
+import socket
 import threading
 import os.path
 import urllib.parse
@@ -10,12 +11,27 @@ import pychromecast
 from cmd import Cmd
 
 cast = None
-my_ip = '192.168.1.1' # TODO 
-cc_ip = '192.168.1.2'
+my_ip = None
+cc_ip = None
 my_port = 5000
 stopFlag = None
 play_queue = []
 play_thread = None
+
+def probe_cc():
+    global cc_ip
+    global my_ip
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(1)
+    for i in range(101,110):
+        cc_ip = f'192.168.0.{i}'
+        print(f'Probing {cc_ip}')
+        err = sock.connect_ex((cc_ip,8009))
+        if err == 0:
+            my_ip = sock.getsockname()[0] 
+            break
+    sock.close()
+    if err: cc_ip = None
 
 class PlayThread(threading.Thread):
     def __init__(self, event):
@@ -24,7 +40,9 @@ class PlayThread(threading.Thread):
 
     def run(self):
         while play_queue and not self.stopped.isSet():
-            s = urllib.parse.quote(play_queue.pop(0),safe="")
+            s = play_queue.pop(0)
+            print(s)
+            s = urllib.parse.quote(s,safe="")
             print(f'http://{my_ip}:{my_port}/play?name={s}')
             cast.play_media(f'http://{my_ip}:{my_port}/play?name={s}', "audio/mp3")
             self.stopped.wait(3) # in case the thread is starting too fast
@@ -34,7 +52,11 @@ class PlayThread(threading.Thread):
             print("End of playlist.")
 
 def show_status():
-    print(cast.media_controller.status.adjusted_current_time)
+    now = int(cast.media_controller.status.adjusted_current_time)
+    total = int(cast.media_controller.status.duration)
+    now_s = time.strftime("%H:%M:%S",time.gmtime(now))
+    total_s = time.strftime("%H:%M:%S",time.gmtime(total))
+    print(f'{now}/{total}({now_s}/{total_s})')
 
 def stop_play_thread():
     global stopFlag
@@ -72,7 +94,7 @@ class MyPrompt(Cmd):
             play_thread.start()
         else:
             cast.media_controller.play()
-        show_status()
+            show_status()
 
     def help_play(self):
         print("Play a song or continue playing.")
@@ -108,7 +130,7 @@ class MyPrompt(Cmd):
         cast.media_controller.stop()
 
     def do_status(self, s):
-        print(f'{cast.media_controller.status.adjusted_current_time}/{cast.media_controller.status.duration}')
+        show_status()
 
     def default(self, s):
         if s == 'q':
@@ -118,7 +140,11 @@ class MyPrompt(Cmd):
     do_EOF = do_exit
      
 if __name__ == '__main__':
-    cast = pychromecast.Chromecast(cc_ip)
+    # my_ip = socket.gethostbyname(socket.gethostname()) always returns 127.0.0.1.
+    # my_ip = socket.gethostbyname(socket.gethostname()+'.local') returns 192.168.0.x. Put here for reference since getsockname also works.
+    probe_cc()
+    if cc_ip:
+        cast = pychromecast.Chromecast(cc_ip)
     if cast is None:
         casts = pychromecast.get_chromecasts()
         if len(casts):
