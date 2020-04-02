@@ -9,6 +9,7 @@ import urllib.parse
 import pychromecast
 
 from cmd import Cmd
+from flask import Flask, send_file, request, make_response
 
 cast = None
 my_ip = None
@@ -23,7 +24,7 @@ def probe_cc():
     global my_ip
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(1)
-    for i in range(101,110):
+    for i in range(100,110):
         cc_ip = f'192.168.0.{i}'
         print(f'Probing {cc_ip}')
         err = sock.connect_ex((cc_ip,8009))
@@ -32,6 +33,26 @@ def probe_cc():
             break
     sock.close()
     if err: cc_ip = None
+
+
+class StreamServer(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+
+    def run(self):
+        app = Flask(__name__)
+
+        @app.route('/play')
+        def serve_chromecast():
+            try:
+                filename = urllib.parse.unquote(request.args.get("name"))
+                response = make_response(send_file(filename))
+                response.headers['Accept-Ranges'] = 'bytes'    # This is important to let Chromecast support seek method.
+                return response
+            except Exception as e:
+                return str(e)
+             
+        app.run(host='0.0.0.0')
 
 class PlayThread(threading.Thread):
     def __init__(self, event):
@@ -52,8 +73,8 @@ class PlayThread(threading.Thread):
             print("End of playlist.")
 
 def show_status():
-    now = int(cast.media_controller.status.adjusted_current_time)
-    total = int(cast.media_controller.status.duration)
+    now = int(cast.media_controller.status.adjusted_current_time or 0)
+    total = int(cast.media_controller.status.duration or 0)
     now_s = time.strftime("%H:%M:%S",time.gmtime(now))
     total_s = time.strftime("%H:%M:%S",time.gmtime(total))
     print(f'{now}/{total}({now_s}/{total_s})')
@@ -62,6 +83,14 @@ def stop_play_thread():
     global stopFlag
     if stopFlag:
         stopFlag.set()
+
+def to_seconds(s):
+    t = s.split(':')
+    t.reverse()
+    ts = 0
+    for i in range(len(t)):
+        ts += int(t[i])*60**i
+    return ts
 
 class MyPrompt(Cmd):
     prompt = 'cc> '
@@ -78,7 +107,7 @@ class MyPrompt(Cmd):
         return True
         
     def do_volume(self, s):
-        cast.set_volume(float(s))
+        cast.set_volume(float(s or 0))
 
     def do_play(self, s):
         global stopFlag
@@ -103,7 +132,8 @@ class MyPrompt(Cmd):
         self.do_play('')
 
     def do_seek(self, s):
-        cast.media_controller.seek(s) # not work. don't know why.
+        ts = to_seconds(s)
+        cast.media_controller.seek(ts)
 
     def do_queue(self, s):
         if len(s):
@@ -141,10 +171,11 @@ class MyPrompt(Cmd):
      
 if __name__ == '__main__':
     # my_ip = socket.gethostbyname(socket.gethostname()) always returns 127.0.0.1.
-    # my_ip = socket.gethostbyname(socket.gethostname()+'.local') returns 192.168.0.x. Put here for reference since getsockname also works.
     probe_cc()
     if cc_ip:
         cast = pychromecast.Chromecast(cc_ip)
+    if not my_ip:
+       my_ip = socket.gethostbyname(socket.gethostname()+'.local')
     if cast is None:
         casts = pychromecast.get_chromecasts()
         if len(casts):
@@ -158,6 +189,6 @@ if __name__ == '__main__':
     print(cast.media_controller.status)
     time.sleep(1)
     cast.set_volume(0.25)
-
+    StreamServer().start()
     MyPrompt().cmdloop()
 

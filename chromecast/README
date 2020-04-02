@@ -1,12 +1,12 @@
 Test on my Chromecast Audio
 
-# serve_chromecast &
 # to_chromecast
 cc> play /home/foo/a.mp3
 cc> volume .5
 cc> queue /home/foo/rock.pls
 cc> pause
 cc> play
+cc> seek 1:20
 cc> status
 cc> next
 cc> stop
