@@ -8,6 +8,7 @@ cc> pause
 cc> play
 cc> seek 1:20
 cc> status
+cc> repeat 50,1:20
 cc> next
 cc> stop
 cc> exit

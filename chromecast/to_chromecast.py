@@ -1,8 +1,10 @@
 #!/usr/bin/python3
 
 import sys
+import json
 import time
 import socket
+import logging
 import threading
 import os.path
 import urllib.parse
@@ -14,10 +16,16 @@ from flask import Flask, send_file, request, make_response
 cast = None
 my_ip = None
 cc_ip = None
-my_port = 5000
+my_port = 63915
 stopFlag = None
+loop = None
+volume = 0.25
+now_playing = None
 play_queue = []
 play_thread = None
+stream_server = None
+history = os.path.join(os.getenv('HOME'),'.to_chromecast','history')
+resume = 0
 
 def probe_cc():
     global cc_ip
@@ -33,7 +41,6 @@ def probe_cc():
             break
     sock.close()
     if err: cc_ip = None
-
 
 class StreamServer(threading.Thread):
     def __init__(self):
@@ -52,7 +59,7 @@ class StreamServer(threading.Thread):
             except Exception as e:
                 return str(e)
              
-        app.run(host='0.0.0.0')
+        app.run(host='0.0.0.0',port=my_port)
 
 class PlayThread(threading.Thread):
     def __init__(self, event):
@@ -60,17 +67,39 @@ class PlayThread(threading.Thread):
         self.stopped = event
 
     def run(self):
+        global resume
+        global now_playing 
         while play_queue and not self.stopped.isSet():
-            s = play_queue.pop(0)
+            now_playing = s = play_queue.pop(0)
             print(s)
             s = urllib.parse.quote(s,safe="")
             print(f'http://{my_ip}:{my_port}/play?name={s}')
-            cast.play_media(f'http://{my_ip}:{my_port}/play?name={s}', "audio/mp3")
+            cast.play_media(f'http://{my_ip}:{my_port}/play?name={s}', "audio/mp3", current_time = resume)
+            if resume: # true when restoring last playing session
+               resume = 0
             self.stopped.wait(3) # in case the thread is starting too fast
             while not self.stopped.wait(1) and (cast.media_controller.is_playing or cast.media_controller.is_paused):
-                pass
+                now = int(cast.media_controller.status.adjusted_current_time or 0)
+                if loop and now > loop[1]:
+                    cast.media_controller.seek(loop[0])
         if not play_queue:
             print("End of playlist.")
+
+def restore_last_session():
+    global resume
+    global play_queue
+    try:
+        with open(history,'r') as f:
+            try:
+                d = json.load(f)
+                resume = d['timestamp']
+                play_queue = d['queue']
+            except:
+                pass
+    except FileNotFoundError:
+        dirname = os.path.dirname(history)
+        if not os.path.isdir(dirname):
+            os.mkdir(dirname)
 
 def show_status():
     now = int(cast.media_controller.status.adjusted_current_time or 0)
@@ -98,16 +127,28 @@ class MyPrompt(Cmd):
      
     def do_exit(self, s):
         global play_thread
+        global stream_server
+        global now_playing 
+        if now_playing:
+            play_queue.insert(0,now_playing)
+        now = int(cast.media_controller.status.adjusted_current_time or 0)
+        with open(history,'w') as f:
+            json.dump({'timestamp': now,'queue': play_queue},f)
         self.do_stop(s)
         if play_thread:
             play_thread.join()
-        cast.set_volume(0.95)
+        self.do_volume(0.95)
         cast.disconnect()
         print("Bye")
         return True
         
     def do_volume(self, s):
-        cast.set_volume(float(s or 0))
+        global volume
+        if s:
+            volume = float(s)
+            cast.set_volume(volume)
+        else:
+            print(f'Volume = {volume}')
 
     def do_play(self, s):
         global stopFlag
@@ -127,6 +168,19 @@ class MyPrompt(Cmd):
 
     def help_play(self):
         print("Play a song or continue playing.")
+
+    def do_repeat(self, s):
+        global loop
+        if s == 'stop':
+            loop = None
+            return
+        loop = [ to_seconds(i.strip()) for i in s.split(',') ]
+        if len(loop) != 2 or loop[0] >= loop[1]:
+            self.help_repeat()
+            return
+
+    def help_repeat(self):
+        print("Usage: repeat 1:20,1:40 or repeat stop.")
 
     def do_next(self, s):
         self.do_play('')
@@ -153,9 +207,12 @@ class MyPrompt(Cmd):
         cast.media_controller.pause()
         show_status()
 
+    def do_debug(self, s):
+        #TODO
+        pass
+
     def do_stop(self, s):
         show_status()
-        #TODO: save current song and stop time to history and load it in next start.
         stop_play_thread()
         cast.media_controller.stop()
 
@@ -188,7 +245,14 @@ if __name__ == '__main__':
     print(cast.status)
     print(cast.media_controller.status)
     time.sleep(1)
-    cast.set_volume(0.25)
-    StreamServer().start()
+    cast.set_volume(volume)
+
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
+    stream_server = StreamServer()
+    stream_server.setDaemon(True)
+    stream_server.start()
+
+    restore_last_session()
     MyPrompt().cmdloop()
 
