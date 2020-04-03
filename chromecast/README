@@ -1,6 +1,6 @@
-Test on my Chromecast Audio
+Test pychromecast on my Chromecast Audio
 
-# to_chromecast
+# gcastctl
 cc> play /home/foo/a.mp3
 cc> volume .5
 cc> queue /home/foo/rock.pls

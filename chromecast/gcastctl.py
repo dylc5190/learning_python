@@ -24,7 +24,7 @@ now_playing = None
 play_queue = []
 play_thread = None
 stream_server = None
-history = os.path.join(os.getenv('HOME'),'.to_chromecast','history')
+history = os.path.join(os.getenv('HOME'),'.gcastctl','history')
 resume = 0
 
 def probe_cc():
@@ -83,6 +83,7 @@ class PlayThread(threading.Thread):
                 if loop and now > loop[1]:
                     cast.media_controller.seek(loop[0])
         if not play_queue:
+            now_playing = None
             print("End of playlist.")
 
 def restore_last_session():
