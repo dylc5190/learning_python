@@ -30,17 +30,18 @@ resume = 0
 def probe_cc():
     global cc_ip
     global my_ip
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(1)
     for i in range(100,110):
-        cc_ip = f'192.168.0.{i}'
-        print(f'Probing {cc_ip}')
-        err = sock.connect_ex((cc_ip,8009))
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        ip = f'192.168.0.{i}'
+        print(f'Probing {ip}')
+        err = sock.connect_ex((ip,8009))
         if err == 0:
+            cc_ip = ip
             my_ip = sock.getsockname()[0] 
+        sock.close()
+        if cc_ip:
             break
-    sock.close()
-    if err: cc_ip = None
 
 class StreamServer(threading.Thread):
     def __init__(self):
@@ -82,9 +83,25 @@ class PlayThread(threading.Thread):
                 now = int(cast.media_controller.status.adjusted_current_time or 0)
                 if loop and now > loop[1]:
                     cast.media_controller.seek(loop[0])
+                elif now % 30 == 0:
+                    save_session()
+            save_session()
         if not play_queue:
-            now_playing = None
             print("End of playlist.")
+
+def save_session():
+    global now_playing
+    global play_queue
+    global history
+    global resume
+    save_queue = []
+    save_queue.extend(play_queue)
+    if now_playing:
+        save_queue.insert(0,now_playing)
+        resume = int(cast.media_controller.status.adjusted_current_time or 0)
+    with open(history,'w') as f:
+        json.dump({'timestamp': resume, 'queue': save_queue},f)
+    resume = 0
 
 def restore_last_session():
     global resume
@@ -111,8 +128,11 @@ def show_status():
 
 def stop_play_thread():
     global stopFlag
+    global play_thread
     if stopFlag:
         stopFlag.set()
+    if play_thread:
+        play_thread.join()
 
 def to_seconds(s):
     t = s.split(':')
@@ -130,14 +150,7 @@ class MyPrompt(Cmd):
         global play_thread
         global stream_server
         global now_playing 
-        if now_playing:
-            play_queue.insert(0,now_playing)
-        now = int(cast.media_controller.status.adjusted_current_time or 0)
-        with open(history,'w') as f:
-            json.dump({'timestamp': now,'queue': play_queue},f)
         self.do_stop(s)
-        if play_thread:
-            play_thread.join()
         self.do_volume(0.95)
         cast.disconnect()
         print("Bye")
@@ -192,11 +205,17 @@ class MyPrompt(Cmd):
 
     def do_queue(self, s):
         if len(s):
-            if os.path.isfile(s) and not s.lower().endswith('mp3'):
-                with open(s) as f:
-                    play_queue.extend([line.strip() for line in f])
+            if os.path.isfile(s):
+                if s.lower().endswith('mp3'):
+                    play_queue.append(s)
+                else:
+                    with open(s) as f:
+                        play_queue.extend([line.strip() for line in f])
+            elif s == 'clear':
+                play_queue.clear()
+                resume = 0 # Case: start -> queue clear -> play. It may affect the case start -> play -> queue clear but the possiblility should be low.
             else:
-                play_queue.append(s)
+                pass
         else:
             for q in play_queue:
                 print(q)
@@ -205,6 +224,7 @@ class MyPrompt(Cmd):
         print("Add a song or a file containing list of songs to playing queue.")
 
     def do_pause(self, s):
+        save_session()
         cast.media_controller.pause()
         show_status()
 
@@ -223,6 +243,8 @@ class MyPrompt(Cmd):
     def default(self, s):
         if s == 'q':
            return self.do_exit(s)
+        elif s == 'c':
+           return self.do_play('')
         print("Unknown command: {}".format(s))
      
     do_EOF = do_exit
