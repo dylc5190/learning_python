@@ -21,10 +21,12 @@ stopFlag = None
 loop = None
 volume = 0.25
 now_playing = None
+user_paused = False
 play_queue = []
 play_thread = None
 stream_server = None
-history = os.path.join(os.getenv('HOME'),'.gcastctl','history')
+conf_dir = os.path.join(os.getenv('HOME'),'.gcastctl')
+history = os.path.join(conf_dir,'history')
 resume = 0
 
 def probe_cc():
@@ -79,35 +81,49 @@ class PlayThread(threading.Thread):
             if resume: # true when restoring last playing session
                resume = 0
             self.stopped.wait(3) # in case the thread is starting too fast
-            while not self.stopped.wait(1) and (cast.media_controller.is_playing or cast.media_controller.is_paused):
+            try:
+              # stopped when a song is done or stop command is issued.
+              while not self.stopped.wait(1) and (cast.media_controller.is_playing or cast.media_controller.is_paused):
                 now = int(cast.media_controller.status.adjusted_current_time or 0)
-                if loop and now > loop[1]:
-                    cast.media_controller.seek(loop[0])
+                if loop:
+                    if now > loop[1]: cast.media_controller.seek(loop[0])
                 elif now % 30 == 0:
                     save_session()
+            except Exception as e:
+                print(f'Got Exception: {e}')
             save_session()
+            if user_paused:
+                '''
+                Chromecast seems to stop the playing after pausing for more than
+                about 20 minutes so I use another variable to check this
+                '''
+                print("Chromecast stopped the playing.")
+                break
         if not play_queue:
             print("End of playlist.")
 
-def save_session():
+def save_session(filename=history):
     global now_playing
     global play_queue
     global history
     global resume
+    global user_paused
     save_queue = []
     save_queue.extend(play_queue)
-    if now_playing:
+    #print(f'save_session: is_playing {cast.media_controller.is_playing}, is_paused {cast.media_controller.is_paused}')
+    if user_paused or cast.media_controller.is_playing or cast.media_controller.is_paused:
         save_queue.insert(0,now_playing)
         resume = int(cast.media_controller.status.adjusted_current_time or 0)
-    with open(history,'w') as f:
+    with open(filename,'w') as f:
         json.dump({'timestamp': resume, 'queue': save_queue},f)
     resume = 0
 
-def restore_last_session():
+def restore_session(filename=history):
     global resume
     global play_queue
+    global conf_dir
     try:
-        with open(history,'r') as f:
+        with open(filename,'r') as f:
             try:
                 d = json.load(f)
                 resume = d['timestamp']
@@ -115,9 +131,13 @@ def restore_last_session():
             except:
                 pass
     except FileNotFoundError:
-        dirname = os.path.dirname(history)
-        if not os.path.isdir(dirname):
-            os.mkdir(dirname)
+        if not os.path.isdir(conf_dir):
+            os.mkdir(conf_dir)
+
+def show_device_info():
+    print(f'{cast.device}\n')
+    print(f'{cast.status}\n')
+    print(cast.media_controller.status)
 
 def show_status():
     now = int(cast.media_controller.status.adjusted_current_time or 0)
@@ -149,8 +169,13 @@ class MyPrompt(Cmd):
     def do_exit(self, s):
         global play_thread
         global stream_server
-        global now_playing 
-        self.do_stop(s)
+        global now_playing
+        '''
+        Unlike do_stop, need to terminate thread before telling controller to stop
+        so as to save current playing status.
+        '''
+        stop_play_thread()
+        cast.media_controller.stop()
         self.do_volume(0.95)
         cast.disconnect()
         print("Bye")
@@ -168,6 +193,8 @@ class MyPrompt(Cmd):
         global stopFlag
         global play_queue
         global play_thread
+        global user_paused
+        user_paused = False
         if len(s):
             play_queue.clear()
             play_queue.append(s)
@@ -183,15 +210,34 @@ class MyPrompt(Cmd):
     def help_play(self):
         print("Play a song or continue playing.")
 
+    def do_pause(self, s):
+        global user_paused
+        user_paused = True
+        cast.media_controller.pause()
+        time.sleep(.25)
+        save_session()
+        show_status()
+
+    def do_stop(self, s):
+        global user_paused
+        user_paused = False
+        show_status()
+        cast.media_controller.stop()
+        time.sleep(.25)
+        stop_play_thread()
+
     def do_repeat(self, s):
         global loop
         if s == 'stop':
             loop = None
             return
-        loop = [ to_seconds(i.strip()) for i in s.split(',') ]
-        if len(loop) != 2 or loop[0] >= loop[1]:
+        try:
+            loop = [ to_seconds(i.strip()) for i in s.split(',') ]
+            if len(loop) != 2 or loop[0] >= loop[1]:
+                raise
+        except:
             self.help_repeat()
-            return
+        return
 
     def help_repeat(self):
         print("Usage: repeat 1:20,1:40 or repeat stop.")
@@ -213,7 +259,7 @@ class MyPrompt(Cmd):
                         play_queue.extend([line.strip() for line in f])
             elif s == 'clear':
                 play_queue.clear()
-                resume = 0 # Case: start -> queue clear -> play. It may affect the case start -> play -> queue clear but the possiblility should be low.
+                resume = 0
             else:
                 pass
         else:
@@ -223,19 +269,20 @@ class MyPrompt(Cmd):
     def help_queue(self):
         print("Add a song or a file containing list of songs to playing queue.")
 
-    def do_pause(self, s):
-        save_session()
-        cast.media_controller.pause()
-        show_status()
+    def do_save(self, s):
+        save_session(s)
+        pass
+
+    def do_load(self, s):
+        restore_session(s)
+        pass
 
     def do_debug(self, s):
         #TODO
         pass
 
-    def do_stop(self, s):
-        show_status()
-        stop_play_thread()
-        cast.media_controller.stop()
+    def do_show(self, s):
+        show_device_info()
 
     def do_status(self, s):
         show_status()
@@ -250,6 +297,15 @@ class MyPrompt(Cmd):
     do_EOF = do_exit
      
 if __name__ == '__main__':
+    '''
+    start, exit
+    start, play, exit
+    start, play, pause, exit
+    start, play, stop, exit
+    start, play, pause, stop, play, exit 
+
+    Whenever stop is issued, now_playing should not be saved.
+    '''
     # my_ip = socket.gethostbyname(socket.gethostname()) always returns 127.0.0.1.
     probe_cc()
     if cc_ip:
@@ -264,9 +320,7 @@ if __name__ == '__main__':
             print("No Devices Found")
             exit()
     cast.start()
-    print(cast.device)
-    print(cast.status)
-    print(cast.media_controller.status)
+    show_device_info()
     time.sleep(1)
     cast.set_volume(volume)
 
@@ -276,6 +330,6 @@ if __name__ == '__main__':
     stream_server.setDaemon(True)
     stream_server.start()
 
-    restore_last_session()
+    restore_session()
     MyPrompt().cmdloop()
 
