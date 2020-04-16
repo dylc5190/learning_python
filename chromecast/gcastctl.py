@@ -13,6 +13,10 @@ import pychromecast
 from cmd import Cmd
 from flask import Flask, send_file, request, make_response
 
+STATE_PLAYING = 1
+STATE_STOPPED = 2
+STATE_PAUSED = 3
+
 cast = None
 my_ip = None
 cc_ip = None
@@ -21,7 +25,7 @@ stopFlag = None
 loop = None
 volume = 0.25
 now_playing = None
-user_paused = False
+user_state = STATE_STOPPED 
 play_queue = []
 play_thread = None
 stream_server = None
@@ -71,7 +75,8 @@ class PlayThread(threading.Thread):
 
     def run(self):
         global resume
-        global now_playing 
+        global now_playing
+        global user_state
         while play_queue and not self.stopped.isSet():
             now_playing = s = play_queue.pop(0)
             print(s)
@@ -82,7 +87,13 @@ class PlayThread(threading.Thread):
                resume = 0
             self.stopped.wait(3) # in case the thread is starting too fast
             try:
-              # stopped when a song is done or stop command is issued.
+              '''
+              Monitor playing status. Break when
+               1. stop command is issued
+               2. current song finished
+               3. Chromecast aborts the playing (e.g. being paused too long or another device takes the control) 
+              Known issue: 2 and 3 have the same condition. I can't distinguish them.
+              '''
               while not self.stopped.wait(1) and (cast.media_controller.is_playing or cast.media_controller.is_paused):
                 now = int(cast.media_controller.status.adjusted_current_time or 0)
                 if loop:
@@ -91,14 +102,22 @@ class PlayThread(threading.Thread):
                     save_session()
             except Exception as e:
                 print(f'Got Exception: {e}')
-            save_session()
-            if user_paused:
+                # don't save session because current_time may not be available now.
+                break
+            if not cast.media_controller.is_paused and user_state is STATE_PAUSED:
                 '''
                 Chromecast seems to stop the playing after pausing for more than
-                about 20 minutes so I use another variable to check this
+                about 20 minutes. Break since we've lost the control of Chromecast.
+
+                By restoring the last saved session user can continue with play command.
+                However this still cannot solve the problem when user does not pause before
+                this happened.
                 '''
+                restore_session()
                 print("Chromecast stopped the playing.")
                 break
+            else:
+                save_session()
         if not play_queue:
             print("End of playlist.")
 
@@ -107,11 +126,11 @@ def save_session(filename=history):
     global play_queue
     global history
     global resume
-    global user_paused
+    global user_state
     save_queue = []
     save_queue.extend(play_queue)
     #print(f'save_session: is_playing {cast.media_controller.is_playing}, is_paused {cast.media_controller.is_paused}')
-    if user_paused or cast.media_controller.is_playing or cast.media_controller.is_paused:
+    if user_state in (STATE_PLAYING, STATE_PAUSED):
         save_queue.insert(0,now_playing)
         resume = int(cast.media_controller.status.adjusted_current_time or 0)
     with open(filename,'w') as f:
@@ -193,8 +212,8 @@ class MyPrompt(Cmd):
         global stopFlag
         global play_queue
         global play_thread
-        global user_paused
-        user_paused = False
+        global user_state
+        user_state = STATE_PLAYING
         if len(s):
             play_queue.clear()
             play_queue.append(s)
@@ -211,16 +230,16 @@ class MyPrompt(Cmd):
         print("Play a song or continue playing.")
 
     def do_pause(self, s):
-        global user_paused
-        user_paused = True
+        global user_state
+        user_state = STATE_PAUSED
         cast.media_controller.pause()
         time.sleep(.25)
         save_session()
         show_status()
 
     def do_stop(self, s):
-        global user_paused
-        user_paused = False
+        global user_state
+        user_state = STATE_STOPPED
         show_status()
         cast.media_controller.stop()
         time.sleep(.25)
@@ -270,10 +289,16 @@ class MyPrompt(Cmd):
         print("Add a song or a file containing list of songs to playing queue.")
 
     def do_save(self, s):
+        global config_dir
+        if -1 == s.find('/'):
+            s = os.path.join(conf_dir,s)
         save_session(s)
         pass
 
     def do_load(self, s):
+        global config_dir
+        if -1 == s.find('/'):
+            s = os.path.join(conf_dir,s)
         restore_session(s)
         pass
 
