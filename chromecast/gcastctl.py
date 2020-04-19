@@ -82,11 +82,11 @@ class PlayThread(threading.Thread):
             print(s)
             s = urllib.parse.quote(s,safe="")
             print(f'http://{my_ip}:{my_port}/play?name={s}')
-            cast.play_media(f'http://{my_ip}:{my_port}/play?name={s}', "audio/mp3", current_time = resume)
-            if resume: # true when restoring last playing session
-               resume = 0
-            self.stopped.wait(3) # in case the thread is starting too fast
             try:
+              cast.play_media(f'http://{my_ip}:{my_port}/play?name={s}', "audio/mp3", current_time = resume)
+              if resume: # true when restoring last playing session
+                resume = 0
+              self.stopped.wait(3) # in case the thread is starting too fast
               '''
               Monitor playing status. Break when
                1. stop command is issued
@@ -216,7 +216,7 @@ class MyPrompt(Cmd):
         user_state = STATE_PLAYING
         if len(s):
             play_queue.clear()
-            play_queue.append(s)
+            self.do_queue(s)
         if play_queue and not cast.media_controller.is_paused:
             stop_play_thread()
             stopFlag = threading.Event()
@@ -267,6 +267,14 @@ class MyPrompt(Cmd):
     def do_seek(self, s):
         ts = to_seconds(s)
         cast.media_controller.seek(ts)
+        show_status()
+
+    def do_ff(self,s):
+        try:
+            ts = int(cast.media_controller.status.adjusted_current_time) +int(s)
+            self.do_seek(str(ts))
+        except Exception as e:
+            print(e)
 
     def do_queue(self, s):
         if len(s):
@@ -317,6 +325,10 @@ class MyPrompt(Cmd):
            return self.do_exit(s)
         elif s == 'c':
            return self.do_play('')
+        elif s == 'qc':
+           return self.do_queue('clear')
+        elif s == 'n':
+           return self.do_next('')
         print("Unknown command: {}".format(s))
      
     do_EOF = do_exit
