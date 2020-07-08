@@ -103,6 +103,8 @@ class PlayThread(threading.Thread):
             except Exception as e:
                 print(f'Got Exception: {e}')
                 # don't save session because current_time may not be available now.
+                # when connection to chromecast is broken, exception occurs on the next tune. Need to restore it.
+                play_queue.insert(0,now_playing)
                 break
             if not cast.media_controller.is_paused and user_state is STATE_PAUSED:
                 '''
@@ -204,6 +206,8 @@ class MyPrompt(Cmd):
         global volume
         if s:
             volume = float(s)
+            while volume > 0:
+                volume /= 100
             cast.set_volume(volume)
         else:
             print(f'Volume = {volume}')
@@ -269,9 +273,18 @@ class MyPrompt(Cmd):
         cast.media_controller.seek(ts)
         show_status()
 
+    def do_rr(self, s):
+        try:
+            n = 10 if len(s) == 0 else int(s)
+            ts = int(cast.media_controller.status.adjusted_current_time) - n
+            self.do_seek(str(ts))
+        except Exception as e:
+            print(e)
+
     def do_ff(self,s):
         try:
-            ts = int(cast.media_controller.status.adjusted_current_time) +int(s)
+            n = 10 if len(s) == 0 else int(s)
+            ts = int(cast.media_controller.status.adjusted_current_time) + n
             self.do_seek(str(ts))
         except Exception as e:
             print(e)
@@ -284,14 +297,15 @@ class MyPrompt(Cmd):
                 else:
                     with open(s) as f:
                         play_queue.extend([line.strip() for line in f])
-            elif s == 'clear':
-                play_queue.clear()
-                resume = 0
             else:
                 pass
         else:
             for q in play_queue:
                 print(q)
+
+    def do_clear(self, s):
+        play_queue.clear()
+        resume = 0
 
     def help_queue(self):
         print("Add a song or a file containing list of songs to playing queue.")
